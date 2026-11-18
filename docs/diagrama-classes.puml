@@ -1,0 +1,233 @@
+@startuml diagrama-classes
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #444444
+  ArrowColor #444444
+}
+skinparam enum {
+  BackgroundColor #F4F4F4
+}
+title Sistema de Gestão de Encomendas Personalizadas — Diagrama de Classes (Etapa 2)
+
+class Encomenda <<raiz do agregado>> {
+  - id : Long
+  - canalOrigem : CanalAtendimento
+  - ocasiao : Ocasiao
+  - status : StatusEncomenda
+  - pontosReservados : int
+  - percentualSinal : BigDecimal
+  - quantidadeRetrabalhos : int
+  - dataCriacao : LocalDateTime
+  - dataEntregaRealizada : LocalDateTime
+  - motivoCancelamento : String
+  --
+  + adicionarItem(produto, quantidade, personalizacao, responsavel) : ItemEncomenda
+  + alterarQuantidadeItem(item, novaQuantidade, responsavel) : void
+  + removerItem(item, responsavel) : void
+  + definirDataEntrega(novoDia, responsavel) : void
+  + confirmar(responsavel) : void
+  + designarParaProducao(operador, responsavel) : void
+  + iniciarProducao(operador) : void
+  + alterarEspecificacao(novaEspecificacao, responsavel) : void
+  + confirmarRevisaoNaProducao(operador) : void
+  + marcarComoPronta(operador) : void
+  + registrarEntrega(responsavel) : void
+  + cancelar(motivo, responsavel) : void
+  + registrarPagamento(valor, forma, recebidoPor) : Pagamento
+  + ajustarPercentualSinal(novoPercentual, responsavel) : void
+  + anexarArquivo(nomeArquivo, url, responsavel) : Anexo
+  ..consultas..
+  + calcularValorTotal() : BigDecimal
+  + calcularSaldoPendente() : BigDecimal
+  + sinalQuitado() : boolean
+  + calcularPontosCapacidade() : int
+}
+
+class Cliente {
+  - id : Long
+  - nome : String
+  - telefone : String
+  - email : String
+  - documento : String
+  - tipo : TipoCliente
+  - dataCadastro : LocalDateTime
+  --
+  + atualizarContato(telefone, email) : void
+  + corrigirNome(nome) : void
+}
+
+class Funcionario {
+  - id : Long
+  - nome : String
+  - setor : Setor
+  - ativo : boolean
+  --
+  + transferirParaSetor(novoSetor) : void
+  + desativar() : void
+  + reativar() : void
+}
+
+class Produto {
+  - id : Long
+  - nome : String
+  - descricao : String
+  - precoBase : BigDecimal
+  - pontosCapacidade : int
+  - ativo : boolean
+  --
+  + reajustarPreco(novoPreco) : void
+  + redefinirEsforco(pontos) : void
+  + atualizarDescricao(descricao) : void
+  + desativar() : void
+  + reativar() : void
+}
+
+class ItemEncomenda {
+  - id : Long
+  - quantidade : int
+  - precoUnitario : BigDecimal
+  - pontosPorUnidade : int
+  - personalizacao : String
+  --
+  ~ alterarQuantidade(novaQuantidade) : void
+  + calcularSubtotal() : BigDecimal
+  + calcularPontosCapacidade() : int
+}
+
+class OrdemProducao {
+  - id : Long
+  - especificacaoTecnica : String
+  - versao : int
+  - dataUltimaRevisao : LocalDateTime
+  - confirmadaPelaProducao : boolean
+  - dataConfirmacao : LocalDateTime
+  --
+  ~ revisar(novaEspecificacao) : void
+  ~ confirmarLeitura(operador) : void
+}
+
+class CapacidadeDiaria {
+  - id : Long
+  - data : LocalDate
+  - capacidadeMaxima : int
+  - capacidadeReservada : int
+  - versao : Long
+  --
+  + ajustarCapacidadeMaxima(novaCapacidade) : void
+  ~ reservar(pontos) : void
+  ~ liberar(pontos) : void
+  + capacidadeDisponivel() : int
+  + estaLotada() : boolean
+}
+
+class Pagamento <<imutável>> {
+  - id : Long
+  - valor : BigDecimal
+  - tipo : TipoPagamento
+  - forma : FormaPagamento
+  - dataPagamento : LocalDateTime
+}
+
+class RegistroAlteracao <<imutável>> {
+  - id : Long
+  - dataHora : LocalDateTime
+  - tipo : TipoAlteracao
+  - descricao : String
+}
+
+class Anexo <<imutável>> {
+  - id : Long
+  - nomeArquivo : String
+  - url : String
+  - dataEnvio : LocalDateTime
+}
+
+enum StatusEncomenda {
+  RASCUNHO
+  PENDENTE
+  EM_PRODUCAO
+  PRONTO
+  ENTREGUE
+  CANCELADA
+  --
+  + podeTransitarPara(destino) : boolean
+}
+
+enum CanalAtendimento {
+  WHATSAPP
+  INSTAGRAM
+  PRESENCIAL
+}
+
+enum Ocasiao {
+  ANIVERSARIO
+  CASAMENTO
+  CORPORATIVO
+  COMEMORACAO
+  OUTRA
+}
+
+enum Setor {
+  ATENDIMENTO
+  PRODUCAO
+  ADMINISTRACAO
+  ENTREGA
+}
+
+enum TipoCliente {
+  PESSOA_FISICA
+  PESSOA_JURIDICA
+}
+
+enum TipoPagamento {
+  SINAL
+  PARCIAL
+  QUITACAO
+}
+
+enum FormaPagamento {
+  PIX
+  DINHEIRO
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  TRANSFERENCIA
+}
+
+enum TipoAlteracao {
+  CRIACAO
+  ITENS
+  ESPECIFICACAO
+  PRAZO
+  STATUS
+  PAGAMENTO
+  EQUIPE
+  ANEXO
+  CONDICAO_FINANCEIRA
+}
+
+' ---------------- relacionamentos (JPA) ----------------
+Encomenda "0..*" --> "1" Cliente : cliente\n@ManyToOne
+Encomenda "0..*" --> "1" Funcionario : atendente\n@ManyToOne
+Encomenda "0..*" --> "0..*" Funcionario : equipeProducao\n@ManyToMany
+Encomenda "0..*" --> "0..1" CapacidadeDiaria : diaEntrega\n@ManyToOne
+Encomenda "1" *-- "1" OrdemProducao : ordemProducao\n@OneToOne
+Encomenda "1" *-- "1..*" ItemEncomenda : itens\n@OneToMany
+Encomenda "1" *-- "0..*" Pagamento : pagamentos\n@OneToMany
+Encomenda "1" *-- "0..*" RegistroAlteracao : historico\n@OneToMany
+Encomenda "1" *-- "0..*" Anexo : anexos\n@OneToMany
+ItemEncomenda "0..*" --> "1" Produto : produto\n@ManyToOne
+Pagamento "0..*" --> "1" Funcionario : recebidoPor\n@ManyToOne
+RegistroAlteracao "0..*" --> "1" Funcionario : responsavel\n@ManyToOne
+Anexo "0..*" --> "1" Funcionario : enviadoPor\n@ManyToOne
+OrdemProducao "0..*" --> "0..1" Funcionario : confirmadaPor\n@ManyToOne
+
+legend right
+  + público    ~ pacote (só a Encomenda chama)    - privado
+  Sem setters: o estado muda apenas pelos métodos acima.
+  ItemEncomenda "1..*" vale a partir de confirmar(); no rascunho pode estar vazio.
+endlegend
+@enduml
